@@ -66,6 +66,10 @@ class WebhookStatusCheckUrlRetriever {
         // Same hosts keep the original protocol scheme of the webhook that was originally set.
         statusCheckUrl = webHookUri.getScheme() + "://" + statusUrlMatcher.group(2);
         log.info("Adjusted Web hook status check url: {}", statusCheckUrl);
+      } else if (statusCheckHost == null) {
+        // Try relative URL
+        statusCheckUrl =  webHookUri.getScheme() + "://" + webHookHost +
+            (statusCheckUrl.charAt(0) == '/' ? statusCheckUrl: "/" + statusCheckUrl);
       }
     }
 
