@@ -136,13 +136,12 @@ class MonitorWebhookTask implements OverridableTimeoutRetryableTask {
     }
 
     try {
-      result = JsonPath.read(response.body, stageData.statusJsonPath)
+      result = arrayValue(JsonPath.read(response.body, stageData.statusJsonPath))
     } catch (PathNotFoundException e) {
       responsePayload.webhook.monitor << [error: String.format(JSON_PATH_NOT_FOUND_ERR_FMT, "status", stageData.statusJsonPath)]
       return TaskResult.builder(ExecutionStatus.TERMINAL).context(responsePayload).build()
     }
-    if (!(result instanceof String || result instanceof Number || result instanceof Boolean ||
-        result instanceof List && ((List) result).isEmpty())) {
+    if (!(result instanceof String || result instanceof Number || result instanceof Boolean || emptyArray(result))) {
       responsePayload.webhook.monitor << [error: "The json path '${stageData.statusJsonPath}' did not resolve to a single value", resolvedValue: result]
       return TaskResult.builder(ExecutionStatus.TERMINAL).context(responsePayload).build()
     }
@@ -166,7 +165,7 @@ class MonitorWebhookTask implements OverridableTimeoutRetryableTask {
 
     def statusMap = createStatusMap(stageData.successStatuses, stageData.canceledStatuses, stageData.terminalStatuses)
 
-    if (result instanceof List && ((List)result).isEmpty()) {
+    if (emptyArray(result)) {
       return TaskResult.builder(ExecutionStatus.NOT_STARTED).context(responsePayload).build()
     } else if (result instanceof Number) {
       def status = result == 100 ? ExecutionStatus.SUCCEEDED : ExecutionStatus.RUNNING
@@ -193,6 +192,18 @@ class MonitorWebhookTask implements OverridableTimeoutRetryableTask {
       statusMap << mapStatuses(terminalStatuses, ExecutionStatus.TERMINAL)
     }
     return statusMap
+  }
+
+  private static boolean emptyArray(Object result) {
+    return result instanceof List && ((List)result).isEmpty()
+  }
+
+  private static Object arrayValue(Object result) {
+    if (result instanceof List) {
+      List listResult = (List) result
+      return listResult.size() == 1 ? listResult.get(0) : listResult
+    }
+    return result
   }
 
   private static Map<String, ExecutionStatus> mapStatuses(String statuses, ExecutionStatus status) {
