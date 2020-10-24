@@ -28,9 +28,7 @@ import com.netflix.spinnaker.orca.webhook.config.WebhookProperties
 import com.netflix.spinnaker.orca.webhook.pipeline.WebhookStage
 import com.netflix.spinnaker.orca.webhook.service.WebhookService
 import groovy.util.logging.Slf4j
-import net.minidev.json.JSONArray
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
 import org.springframework.web.client.HttpStatusCodeException
 
@@ -136,7 +134,7 @@ class MonitorWebhookTask implements OverridableTimeoutRetryableTask {
     }
 
     try {
-      result = arrayValue(JsonPath.read(response.body, stageData.statusJsonPath))
+      result = singleValue(JsonPath.read(response.body, stageData.statusJsonPath), 0)
     } catch (PathNotFoundException e) {
       responsePayload.webhook.monitor << [error: String.format(JSON_PATH_NOT_FOUND_ERR_FMT, "status", stageData.statusJsonPath)]
       return TaskResult.builder(ExecutionStatus.TERMINAL).context(responsePayload).build()
@@ -149,7 +147,7 @@ class MonitorWebhookTask implements OverridableTimeoutRetryableTask {
     if (stageData.progressJsonPath) {
       def progress
       try {
-        progress = JsonPath.read(response.body, stageData.progressJsonPath)
+        progress = singleValue(JsonPath.read(response.body, stageData.progressJsonPath), "Unknown")
       } catch (PathNotFoundException e) {
         responsePayload.webhook.monitor << [error: String.format(JSON_PATH_NOT_FOUND_ERR_FMT, "progress", stageData.statusJsonPath)]
         return TaskResult.builder(ExecutionStatus.TERMINAL).context(responsePayload).build()
@@ -192,10 +190,10 @@ class MonitorWebhookTask implements OverridableTimeoutRetryableTask {
     return statusMap
   }
 
-  private static Object arrayValue(Object result) {
+  private static Object singleValue(Object result, Object defaultValue) {
     if (result instanceof List) {
       List listResult = (List) result
-      return listResult.size() == 0 ? 0 : listResult.size() == 1 ? listResult.get(0) : listResult
+      return listResult.size() == 0 ? defaultValue : listResult.size() == 1 ? listResult.get(0) : listResult
     }
     return result
   }
