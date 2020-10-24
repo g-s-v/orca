@@ -28,6 +28,7 @@ import com.netflix.spinnaker.orca.webhook.config.WebhookProperties
 import com.netflix.spinnaker.orca.webhook.pipeline.WebhookStage
 import com.netflix.spinnaker.orca.webhook.service.WebhookService
 import groovy.util.logging.Slf4j
+import net.minidev.json.JSONArray
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
@@ -140,7 +141,8 @@ class MonitorWebhookTask implements OverridableTimeoutRetryableTask {
       responsePayload.webhook.monitor << [error: String.format(JSON_PATH_NOT_FOUND_ERR_FMT, "status", stageData.statusJsonPath)]
       return TaskResult.builder(ExecutionStatus.TERMINAL).context(responsePayload).build()
     }
-    if (!(result instanceof String || result instanceof Number || result instanceof Boolean)) {
+    if (!(result instanceof String || result instanceof Number || result instanceof Boolean ||
+        result instanceof List && ((List) result).isEmpty())) {
       responsePayload.webhook.monitor << [error: "The json path '${stageData.statusJsonPath}' did not resolve to a single value", resolvedValue: result]
       return TaskResult.builder(ExecutionStatus.TERMINAL).context(responsePayload).build()
     }
@@ -164,7 +166,9 @@ class MonitorWebhookTask implements OverridableTimeoutRetryableTask {
 
     def statusMap = createStatusMap(stageData.successStatuses, stageData.canceledStatuses, stageData.terminalStatuses)
 
-    if (result instanceof Number) {
+    if (result instanceof List && ((List)result).isEmpty()) {
+      return TaskResult.builder(ExecutionStatus.NOT_STARTED).context(responsePayload).build()
+    } else if (result instanceof Number) {
       def status = result == 100 ? ExecutionStatus.SUCCEEDED : ExecutionStatus.RUNNING
       responsePayload.webhook.monitor << [percentComplete: result]
       return TaskResult.builder(status).context(responsePayload).build()
