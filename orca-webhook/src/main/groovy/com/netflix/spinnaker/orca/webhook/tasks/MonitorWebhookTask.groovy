@@ -141,7 +141,7 @@ class MonitorWebhookTask implements OverridableTimeoutRetryableTask {
       responsePayload.webhook.monitor << [error: String.format(JSON_PATH_NOT_FOUND_ERR_FMT, "status", stageData.statusJsonPath)]
       return TaskResult.builder(ExecutionStatus.TERMINAL).context(responsePayload).build()
     }
-    if (!(result instanceof String || result instanceof Number || result instanceof Boolean || emptyArray(result))) {
+    if (!(result instanceof String || result instanceof Number || result instanceof Boolean)) {
       responsePayload.webhook.monitor << [error: "The json path '${stageData.statusJsonPath}' did not resolve to a single value", resolvedValue: result]
       return TaskResult.builder(ExecutionStatus.TERMINAL).context(responsePayload).build()
     }
@@ -165,9 +165,7 @@ class MonitorWebhookTask implements OverridableTimeoutRetryableTask {
 
     def statusMap = createStatusMap(stageData.successStatuses, stageData.canceledStatuses, stageData.terminalStatuses)
 
-    if (emptyArray(result)) {
-      return TaskResult.builder(ExecutionStatus.NOT_STARTED).context(responsePayload).build()
-    } else if (result instanceof Number) {
+    if (result instanceof Number) {
       def status = result == 100 ? ExecutionStatus.SUCCEEDED : ExecutionStatus.RUNNING
       responsePayload.webhook.monitor << [percentComplete: result]
       return TaskResult.builder(status).context(responsePayload).build()
@@ -194,14 +192,10 @@ class MonitorWebhookTask implements OverridableTimeoutRetryableTask {
     return statusMap
   }
 
-  private static boolean emptyArray(Object result) {
-    return result instanceof List && ((List)result).isEmpty()
-  }
-
   private static Object arrayValue(Object result) {
     if (result instanceof List) {
       List listResult = (List) result
-      return listResult.size() == 1 ? listResult.get(0) : listResult
+      return listResult.size() == 0 ? 0 : listResult.size() == 1 ? listResult.get(0) : listResult
     }
     return result
   }
